@@ -1,4 +1,4 @@
-﻿jQuery.fn.mousehold = function (f) {
+jQuery.fn.mousehold = function (f) {
     var timeout = 100;
     if (f && typeof f == 'function') {
         var intervalId = 0;
@@ -51,18 +51,25 @@
         this.numberOfDecimals = $.fn.spinedit.defaults.numberOfDecimals;
         if (hasOptions && typeof options.numberOfDecimals == 'number') {
             this.setNumberOfDecimals(options.numberOfDecimals);
-        }        
-		
-		var value = $.fn.spinedit.defaults.value;
+        }
+
+        this.decimalSeparator = $.fn.spinedit.defaults.decimalSeparator;
+        if (hasOptions && typeof options.decimalSeparator == 'string') {
+            this.decimalSeparator = options.decimalSeparator;
+        }
+
+        var value = $.fn.spinedit.defaults.value;
         if (hasOptions && typeof options.value == 'number') {
             value = options.value;
-        } else {			
-			if (this.element.val()) {
-				var initialValue = parseFloat(this.element.val());
-				if (!isNaN(initialValue)) value = initialValue.toFixed(this.numberOfDecimals);				
-			}
-		}		
-        this.setValue(value);		
+        } else {
+            if (this.element.val()) {
+                var initialValue = (this.decimalSeparator !== '.')
+                                        ? parseFloat(this.element.val().replace(this.decimalSeparator, '.'))
+                                        : parseFloat(this.element.val());
+                if (!isNaN(initialValue)) value = initialValue.toFixed(this.numberOfDecimals);
+            }
+        }
+        this.setValue(value);
 
         this.step = $.fn.spinedit.defaults.step;
         if (hasOptions && typeof options.step == 'number') {
@@ -71,12 +78,15 @@
 
         var template = $(DRPGlobal.template);
         this.element.after(template);
-	$(template).each(function (i,x) {
+
+        this.element.closest('div').addClass('input-group');        // necessary for the bootstrap .input-group-addon elements in the template
+
+        $(template).each(function (i, x) {
             $(x).bind('selectstart click mousedown', function () { return false; });
         });
 
-        template.find('.icon-chevron-up').mousehold($.proxy(this.increase, this));
-        template.find('.icon-chevron-down').mousehold($.proxy(this.decrease, this));
+        template.andSelf().filter('.spinedit-decrement').mousehold($.proxy(this.decrease, this));
+        template.andSelf().filter('.spinedit-increment').mousehold($.proxy(this.increase, this));
         this.element.on('keypress', $.proxy(this._keypress, this));
         this.element.on('blur', $.proxy(this._checkConstraints, this));
     };
@@ -101,6 +111,10 @@
         },
 
         setValue: function (value) {
+            if (this.decimalSeparator !== '.' && value) {
+                value = parseFloat(value.toString().replace(this.decimalSeparator, '.'));
+            }
+
             value = parseFloat(value);
             if (isNaN(value))
                 value = this.minimum;
@@ -111,7 +125,12 @@
             if (value > this.maximum)
                 value = this.maximum;
             this.value = value;
-            this.element.val(this.value.toFixed(this.numberOfDecimals));
+            if (this.decimalSeparator !== '.') {
+                this.element.val(this.value.toFixed(this.numberOfDecimals).replace('.', this.decimalSeparator));
+            } else {
+                this.element.val(this.value.toFixed(this.numberOfDecimals));
+            }
+
             this.element.change();
 
             this.element.trigger({
@@ -164,7 +183,7 @@
 
             if (!data) {
                 $this.data('spinedit', new SpinEdit(this, $.extend({}, $.fn.spinedit().defaults, options)));
-				data = $this.data('spinedit');
+                data = $this.data('spinedit');
             }
             if (typeof option == 'string' && typeof data[option] == 'function') {
                 data[option].apply(data, args);
@@ -177,7 +196,8 @@
         minimum: 0,
         maximum: 100,
         step: 1,
-        numberOfDecimals: 0
+        numberOfDecimals: 0,
+        decimalSeparator: '.'
     };
 
     $.fn.spinedit.Constructor = SpinEdit;
@@ -185,9 +205,7 @@
     var DRPGlobal = {};
 
     DRPGlobal.template =
-	'<div class="spinedit">' +
-	'<i class="icon-chevron-up"></i>' +
-	'<i class="icon-chevron-down"></i>' +
-	'</div>';
+	'<span class="spinedit-decrement input-group-addon"><span class="glyphicon glyphicon-minus"></span></span>' +
+    '<span class="spinedit-increment input-group-addon"><span class="glyphicon glyphicon-plus"></span></span>';
 
 }(window.jQuery);
